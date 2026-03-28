@@ -33,8 +33,8 @@ app.post('/chat', async (req, res) => {
       'match_documents_portfolio',
       {
         query_embedding: embedding,
-        match_count: 5,
-        similarity_threshold: 0.25,
+        match_count: 3, // Retrieve top 3 matches
+        similarity_threshold: 0.25, // (0.0 to 1.0)
         filter_type: null,
         filter_group: null
       } 
