@@ -1,20 +1,21 @@
-# Use Node.js version 20
+# Sử dụng Node.js bản 20
 FROM node:20
 
-# Create app directory
+# Tạo thư mục app
 WORKDIR /app
 
-# Copy package.json and install dependencies
+# Copy package.json và cài đặt dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy all code into container
+# Copy toàn bộ code vào container
 COPY . .
 
-# Run model cache build command (same as on Render) to startup faster
-RUN node -e "require('@xenova/transformers').pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')"
+# Use the new Hugging Face package to pre-download the model
+RUN node -e "require('@huggingface/transformers').pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')"
 
-# Expose port 7860 (default port for HF Spaces)
+# Set environment variable to cache model in the correct location inside the container
+ENV TRANSFORMERS_CACHE=/app/.cache
 EXPOSE 7860
 
 # Run server
