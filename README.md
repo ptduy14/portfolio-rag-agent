@@ -1,3 +1,12 @@
+---
+title: Portfolio RAG Agent
+emoji: 🤖
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # 🤖 Portfolio RAG Agent
 
 > A smart AI assistant (Digital Twin) built on **RAG (Retrieval-Augmented Generation)** architecture to answer questions about **Phan Tan Duy's** career, projects, and technical skills.
