@@ -1,14 +1,13 @@
-# Sử dụng Node.js bản 20
-FROM node:20
+FROM node:24
 
-# Tạo thư mục app
+# Create app directory
 WORKDIR /app
 
-# Copy package.json và cài đặt dependencies
+# Copy package.json and install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy toàn bộ code vào container
+# Copy all code into the container
 COPY . .
 
 # Use the new Hugging Face package to pre-download the model
