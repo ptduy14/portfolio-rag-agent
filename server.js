@@ -108,6 +108,7 @@ app.post('/chat', async (req, res) => {
   }
 });
 
-app.listen(3001, () =>
-  console.log('🚀 Server running at http://localhost:3001')
-);
+const PORT = process.env.PORT || 7860; 
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT}`);
+});
