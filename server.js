@@ -1,11 +1,15 @@
 import 'dotenv/config';
 import express from 'express';
 import axios from 'axios';
+import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import { getEmbedding } from './embed.js';
 import { buildPrompt } from './build-promt.js';
+import tools from './tools.js';
+import corsOptions from './cors-config.js';
 
 const app = express();
+app.use(cors(corsOptions)); 
 app.use(express.json());
 
 const supabase = createClient(
@@ -22,11 +26,8 @@ app.post('/chat', async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    console.log(`\n📩 Question: "${message}"`);
-
     // 1. Embedding
     const embedding = await getEmbedding(message);
-    console.log("Vector length:", embedding.length);
 
     // 2. Vector search
     const { data: documents, error } = await supabase.rpc(
@@ -46,8 +47,6 @@ app.post('/chat', async (req, res) => {
     }
 
     const docsArray = documents || [];
-
-    console.log(`🔍 Found ${docsArray.length} matches`);
 
     // If not found any relevant document, return a default message
     if (docsArray.length === 0) {
@@ -74,6 +73,8 @@ app.post('/chat', async (req, res) => {
           { role: 'system', content: 'You are Tan Duy. Answer briefly using the context provided.' },
           { role: 'user', content: prompt }
         ],
+        tools: tools,
+        tool_choice: "auto",
         temperature: 0.6, // Reduce creativity for more accurate responses
         max_tokens: 300,  // Set token limit to control response length
         top_p: 1,
@@ -87,14 +88,39 @@ app.post('/chat', async (req, res) => {
       }
     );
 
-    const reply = response.data?.choices?.[0]?.message?.content;
+    const messageObj = response.data?.choices?.[0]?.message;
 
-    if (!reply) {
-      throw new Error("Empty response from Groq");
+
+    // Check if the LLM decided to call a tool
+    if (messageObj.tool_calls) {
+      const toolCall = messageObj.tool_calls[0];
+      const functionName = toolCall.function.name;
+      
+      // Parse arguments safely
+      let args = {};
+      try {
+        args = JSON.parse(toolCall.function.arguments || "{}");
+      } catch (e) {
+        args = {};
+      }
+
+      // Return reply based on the tool called
+      let replyText = "";
+      if (functionName === "download_cv") {
+        replyText = "Of course! Starting the download for my CV now.";
+      } else {
+        replyText = "Action received! Processing it right away.";
+      }
+
+      return res.json({
+        reply: replyText,
+        action: functionName,
+        data: args
+      });
     }
 
-    console.log("🤖 Duy:", reply);
-
+    // If no tool was called, return the normal message
+    const reply = messageObj.content;
     res.json({ reply });
 
   } catch (err) {
