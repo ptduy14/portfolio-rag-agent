@@ -1,25 +1,25 @@
-import 'dotenv/config';
-import express from 'express';
-import axios from 'axios';
-import cors from 'cors';
-import { createClient } from '@supabase/supabase-js';
-import { getEmbedding } from './embed.js';
-import { buildPrompt } from './build-promt.js';
-import tools from './tools.js';
-import corsOptions from './cors-config.js';
+import "dotenv/config";
+import express from "express";
+import axios from "axios";
+import cors from "cors";
+import { createClient } from "@supabase/supabase-js";
+import { getEmbedding } from "./embed.js";
+import { buildPrompt } from "./build-promt.js";
+import tools from "./tools.js";
+import corsOptions from "./cors-config.js";
 
 const app = express();
-app.use(cors(corsOptions)); 
+app.use(cors(corsOptions));
 app.use(express.json());
 
 const supabase = createClient(
   process.env.SUPABASE_PROJECT_URL,
-  process.env.SUPABASE_SECRECT_KEY
+  process.env.SUPABASE_SECRECT_KEY,
 );
 
 const GROQ_API = process.env.GROQ_API_URL;
 
-app.post('/chat', async (req, res) => {
+app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
     if (!message) {
@@ -31,14 +31,14 @@ app.post('/chat', async (req, res) => {
 
     // 2. Vector search
     const { data: documents, error } = await supabase.rpc(
-      'match_documents_portfolio',
+      "match_documents_portfolio",
       {
         query_embedding: embedding,
         match_count: 3, // Retrieve top 3 matches
         similarity_threshold: 0.25, // (0.0 to 1.0)
         filter_type: null,
-        filter_group: null
-      } 
+        filter_group: null,
+      },
     );
 
     if (error) {
@@ -51,51 +51,55 @@ app.post('/chat', async (req, res) => {
     // If not found any relevant document, return a default message
     if (docsArray.length === 0) {
       return res.json({
-        reply: "I’m not sure about that. I don’t have enough information to answer."
+        reply:
+          "I’m not sure about that. I don’t have enough information to answer.",
       });
     }
 
     // 3. Build context
-    const context = docsArray.map(d => d.content).join('\n');
+    const context = docsArray.map((d) => d.content).join("\n");
 
     // 4. Build prompt
     const prompt = buildPrompt({
       message,
-      context
+      context,
     });
 
     // 5. Call LLM
     const response = await axios.post(
       GROQ_API,
       {
-        model: 'llama-3.1-8b-instant',
+        model: "llama-3.1-8b-instant",
         messages: [
-          { role: 'system', content: 'You are Tan Duy. Answer briefly using the context provided.' },
-          { role: 'user', content: prompt }
+          {
+            role: "system",
+            content:
+              "You are Tan Duy. Answer briefly using the context provided.",
+          },
+          { role: "user", content: prompt },
         ],
         tools: tools,
         tool_choice: "auto",
         temperature: 0.6, // Reduce creativity for more accurate responses
-        max_tokens: 300,  // Set token limit to control response length
+        max_tokens: 300, // Set token limit to control response length
         top_p: 1,
-        stream: false
+        stream: false,
       },
       {
         headers: {
           Authorization: `Bearer ${process.env.GROQ_API_SECRET_KEY.trim()}`,
-          'Content-Type': 'application/json'
-        }
-      }
+          "Content-Type": "application/json",
+        },
+      },
     );
 
     const messageObj = response.data?.choices?.[0]?.message;
-
 
     // Check if the LLM decided to call a tool
     if (messageObj.tool_calls) {
       const toolCall = messageObj.tool_calls[0];
       const functionName = toolCall.function.name;
-      
+
       // Parse arguments safely
       let args = {};
       try {
@@ -115,17 +119,19 @@ app.post('/chat', async (req, res) => {
       return res.json({
         reply: replyText,
         action: functionName,
-        data: args
+        data: args,
       });
     }
 
     // If no tool was called, return the normal message
     const reply = messageObj.content;
     res.json({ reply });
-
   } catch (err) {
     if (err.response) {
-      console.error("❌ Groq error:", JSON.stringify(err.response.data, null, 2));
+      console.error(
+        "❌ Groq error:",
+        JSON.stringify(err.response.data, null, 2),
+      );
     } else {
       console.error("💥 System error:", err.message);
     }
@@ -134,7 +140,22 @@ app.post('/chat', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 7860; 
-app.listen(PORT, '0.0.0.0', () => {
+app.get("/heartbeat", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("documents")
+      .select("id")
+      .limit(1);
+
+    if (error) throw error;
+
+    res.status(200).json({ status: "success", message: "All systems online" });
+  } catch (err) {
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+const PORT = process.env.PORT || 7860;
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server is running on port ${PORT}`);
 });
