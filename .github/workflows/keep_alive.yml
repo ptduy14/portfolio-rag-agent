@@ -10,4 +10,4 @@ jobs:
     steps:
       - name: Wake up systems
         run: |
-          curl -s https://portfolio-rag-agent.hf.space/heartbeat
+          curl -s https://ptduy14-portfolio-rag-agent.hf.space/heartbeat
